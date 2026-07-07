@@ -43,6 +43,7 @@ INDUSTRIES = {
     "I_CHEM": "화학·소재",
     "I_METAL": "금속가공",
     "I_SERV": "서비스업·기타",
+    "I_BEAUTY": "화장품·바이오·화학소재",
     OTHER_CODE: OTHER_LABEL,
 }
 
@@ -60,6 +61,8 @@ PAINS = {
     "P_FRAUD": "무역사기·대금 회수 (미수금, 사기, 신용리스크)",
     "P_COMM": "바이어 커뮤니케이션·언어 (상담, 협상, 응대 공백)",
     "P_LOGIS": "물류·통관·인증 (선적, 통관, 규격/인증 대응)",
+    "P_LEGAL_MIDDLE_EAST": "중동 현지법/Sponsor 및 영문 NDA 독소조항 리스크",
+    "P_REGULATION_ASIA": "일본/러시아 등 국가별 복잡한 통관·인증 요건 및 제재",
     OTHER_CODE: OTHER_LABEL,
 }
 
@@ -95,6 +98,8 @@ PAIN_TO_PRODUCT = {
     "P_FRAUD": "Tops",
     "P_COMM": "Global Desk",
     "P_LOGIS": "Global Desk",
+    "P_LEGAL_MIDDLE_EAST": "Tops",        # 준거법·NDA 독소조항 → 리스크 가드레일
+    "P_REGULATION_ASIA": "Global Desk",   # 국가별 인증·제재 대응 → 크로스보더 운영지원
 }
 
 
@@ -145,6 +150,11 @@ _SEED = [
     # 수도권·서비스업 = 지방 제조 가설로의 오매칭 방지용 전용 셀
     ("R_SEOUL", "I_SERV",  "E_EARLY",  "S_NONE", "L_NONE", "P_LEGAL", 1.0, 30),  # Tops
     ("R_SEOUL", "I_SERV",  "E_GROWTH", "S_FEW",  "L_NONE", "P_COMM",  1.0, 35),  # Global Desk
+    # 화장품·바이오 수출 제조사 (다변화 마켓: 중동/러시아/일본) — 국가별 특수성 대응 공백
+    # T33) 김포(수도권 외곽) 화장품, 다변화 수출, 중동 준거법·NDA·사기 우려 → Tops
+    ("R_SEOUL", "I_BEAUTY", "E_SCALE",  "S_FEW",  "L_NONE", "P_LEGAL_MIDDLE_EAST", 1.0, 40),  # Tops
+    # T34) 광주(호남) 화장품, 일본 수출, 복잡한 인증 요건·인력 공백 → Global Desk
+    ("R_HONAM", "I_BEAUTY", "E_GROWTH", "S_NONE", "L_NONE", "P_REGULATION_ASIA",  1.0, 45),  # Global Desk
 ]
 
 
