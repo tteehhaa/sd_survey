@@ -65,12 +65,12 @@ def public_survey():
     st.write(C.INTRO_SUB)
 
     # (a) 시작 화면 바이럴 장치
-    with st.container(border=True):
-        st.markdown(f"**{C.INTRO_SHARE_LINE}**")
-        start_share = f"{BASE_URL}/?ref=intro"
-        share_widget(start_share, C.viral_message_for_respondent(start_share), key="intro")
+    # with st.container(border=True):
+      #   st.markdown(f"**{C.INTRO_SHARE_LINE}**")
+      #   start_share = f"{BASE_URL}/?ref=intro"
+      #   share_widget(start_share, C.viral_message_for_respondent(start_share), key="intro")
 
-    st.divider()
+    #  st.divider()
 
     if st.session_state.get("submitted"):
         _thank_you_screen()
