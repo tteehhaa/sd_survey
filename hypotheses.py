@@ -31,6 +31,7 @@ REGIONS = {
     "R_DAEGU": "대경권 (대구·경북)",
     "R_DONGN": "동남권 (부산·울산·경남)",
     "R_GANGW": "강원권 (강원·제주)",
+    "R_SEOUL": "수도권 (서울·경기·인천)",
     OTHER_CODE: OTHER_LABEL,
 }
 
@@ -41,6 +42,7 @@ INDUSTRIES = {
     "I_ELEC": "전기·전자",
     "I_CHEM": "화학·소재",
     "I_METAL": "금속가공",
+    "I_SERV": "서비스업·기타",
     OTHER_CODE: OTHER_LABEL,
 }
 
@@ -140,6 +142,9 @@ _SEED = [
     ("R_CHUNG", "I_AUTO",  "E_SCALE",  "S_TEAM", "L_TEAM", "P_FRAUD", 1.5, 22),
     ("R_DAEGU", "I_MACH",  "E_SCALE",  "S_TEAM", "L_EXT",  "P_COMM",  1.5, 25),
     ("R_HONAM", "I_CHEM",  "E_SCALE",  "S_TEAM", "L_TEAM", "P_LEGAL", 1.5, 20),
+    # 수도권·서비스업 = 지방 제조 가설로의 오매칭 방지용 전용 셀
+    ("R_SEOUL", "I_SERV",  "E_EARLY",  "S_NONE", "L_NONE", "P_LEGAL", 1.0, 30),  # Tops
+    ("R_SEOUL", "I_SERV",  "E_GROWTH", "S_FEW",  "L_NONE", "P_COMM",  1.0, 35),  # Global Desk
 ]
 
 
