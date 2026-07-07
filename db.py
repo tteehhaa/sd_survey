@@ -43,9 +43,16 @@ CREATE TABLE IF NOT EXISTS responses (
     matched_product TEXT,
     -- 바이럴
     referred_by     TEXT,     -- 유입 ref 코드(누가 공유했는지)
-    share_code      TEXT      -- 이 응답자에게 발급된 공유 코드
+    share_code      TEXT,     -- 이 응답자에게 발급된 공유 코드
+    -- 관리자용 소프트 삭제: 1이면 테스트/노이즈로 분석에서 제외(데이터는 보존)
+    excluded        INTEGER DEFAULT 0
 );
 """
+
+# 기존 DB에 뒤늦게 추가된 컬럼 — init_db()에서 없으면 ALTER로 채운다.
+MIGRATIONS = {
+    "excluded": "ALTER TABLE responses ADD COLUMN excluded INTEGER DEFAULT 0",
+}
 
 
 @contextmanager
@@ -62,6 +69,22 @@ def get_conn():
 def init_db():
     with get_conn() as c:
         c.executescript(SCHEMA)
+        # 기존 DB 마이그레이션: 누락된 컬럼을 안전하게 추가
+        existing = {row[1] for row in c.execute("PRAGMA table_info(responses)")}
+        for col, ddl in MIGRATIONS.items():
+            if col not in existing:
+                c.execute(ddl)
+
+
+def set_excluded(ids: list[int], excluded: int) -> None:
+    """지정한 응답 id들의 분석 제외 플래그를 설정(1=제외, 0=복원). 데이터는 삭제하지 않는다."""
+    if not ids:
+        return
+    with get_conn() as c:
+        c.executemany(
+            "UPDATE responses SET excluded = ? WHERE id = ?",
+            [(int(excluded), int(i)) for i in ids],
+        )
 
 
 def insert_response(data: dict) -> int:
@@ -84,6 +107,7 @@ def load_responses() -> pd.DataFrame:
     with get_conn() as c:
         df = pd.read_sql_query("SELECT * FROM responses ORDER BY created_at DESC", c)
     if not df.empty:
-        for col in ("allow_call", "allow_meeting"):
-            df[col] = df[col].fillna(0).astype(int)
+        for col in ("allow_call", "allow_meeting", "excluded"):
+            if col in df.columns:
+                df[col] = df[col].fillna(0).astype(int)
     return df

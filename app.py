@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import content as C
-from db import init_db, insert_response, load_responses
+from db import init_db, insert_response, load_responses, set_excluded
 from hypotheses import (
     REGIONS, INDUSTRIES, STAGES, PAINS, SALES_STRUCT, LEGAL_STRUCT,
     SIZE_BUCKETS, HYPOTHESIS_MATRIX, match_response, evaluate_hypotheses,
@@ -216,14 +216,25 @@ def admin_dashboard():
                 st.error("비밀번호가 올바르지 않습니다.")
         return
 
-    df = load_responses()
-    st.caption(f"누적 응답 {len(df)}건 · 갱신 {dt.datetime.now():%Y-%m-%d %H:%M}")
-    if df.empty:
+    df_all = load_responses()
+    if df_all.empty:
+        st.caption(f"누적 응답 0건 · 갱신 {dt.datetime.now():%Y-%m-%d %H:%M}")
         st.warning("아직 응답이 없습니다.")
         return
 
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["📊 가설 동적 판정", "📈 가설 vs 실제", "🎯 세일즈 파이프라인", "📥 원본 데이터"]
+    # 분석에서 제외(테스트/노이즈) 처리된 응답을 걸러낸 '분석 대상'
+    n_excluded = int((df_all["excluded"] == 1).sum())
+    df = df_all[df_all["excluded"] == 0].copy()
+    st.caption(
+        f"누적 응답 {len(df_all)}건 · 분석 대상 {len(df)}건 · 제외 {n_excluded}건 · "
+        f"갱신 {dt.datetime.now():%Y-%m-%d %H:%M}"
+    )
+    if df.empty:
+        st.warning("모든 응답이 분석 제외 상태입니다. '🧹 데이터 정리' 탭에서 복원하세요.")
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["📊 가설 동적 판정", "📈 가설 vs 실제", "🎯 세일즈 파이프라인",
+         "📥 원본 데이터", "🧹 데이터 정리"]
     )
 
     # ── Tab1: 동적 판정 (Validated / Pivot / Fail) ──────────────────────────
@@ -302,9 +313,14 @@ def admin_dashboard():
 
     # ── Tab4: 원본 + 지인 배포 메시지 ───────────────────────────────────────
     with tab4:
-        st.dataframe(df, hide_index=True, use_container_width=True)
-        st.download_button("CSV 내려받기", df.to_csv(index=False).encode("utf-8-sig"),
-                           "responses.csv", "text/csv")
+        st.caption("전체 원본(제외 처리분 포함). 분석 제외 여부는 excluded 컬럼(1=제외).")
+        st.dataframe(df_all, hide_index=True, use_container_width=True)
+        st.download_button("전체 CSV 내려받기",
+                           df_all.to_csv(index=False).encode("utf-8-sig"),
+                           "responses_all.csv", "text/csv")
+        st.download_button("분석 대상만 CSV 내려받기",
+                           df.to_csv(index=False).encode("utf-8-sig"),
+                           "responses_active.csv", "text/csv")
         st.divider()
         st.subheader("📨 지인 배포용 메시지")
         outreach_url = f"{BASE_URL}/?ref=founder"
@@ -312,6 +328,46 @@ def admin_dashboard():
         st.code(C.founder_outreach_message(outreach_url), language=None)
         st.markdown("**이메일**")
         st.code(C.email_template(outreach_url), language=None)
+
+    # ── Tab5: 데이터 정리 (테스트/노이즈 분석 제외 · 복원) ────────────────────
+    with tab5:
+        st.subheader("🧹 테스트·노이즈 데이터 분석 제외")
+        st.caption(
+            "체크한 응답은 분석(가설 판정·분포·파이프라인)에서 제외됩니다. "
+            "**데이터는 삭제되지 않으며** 체크 해제로 언제든 복원할 수 있습니다."
+        )
+        cols_show = ["id", "created_at", "company_name", "contact_name",
+                     "contact_phone", "matched_tid", "matched_product", "excluded"]
+        editor_src = df_all[cols_show].copy()
+        editor_src["제외"] = editor_src["excluded"] == 1
+        editor_src = editor_src.drop(columns=["excluded"])
+        edited = st.data_editor(
+            editor_src,
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "created_at": st.column_config.TextColumn("응답시각", disabled=True),
+                "company_name": st.column_config.TextColumn("회사명", disabled=True),
+                "contact_name": st.column_config.TextColumn("담당자", disabled=True),
+                "contact_phone": st.column_config.TextColumn("연락처", disabled=True),
+                "matched_tid": st.column_config.TextColumn("가설", disabled=True),
+                "matched_product": st.column_config.TextColumn("제안상품", disabled=True),
+                "제외": st.column_config.CheckboxColumn(
+                    "분석 제외", help="체크 시 분석에서 제외(데이터는 보존)"),
+            },
+            hide_index=True, use_container_width=True, key="exclude_editor",
+        )
+        if st.button("변경 저장", type="primary"):
+            new_flag = dict(zip(edited["id"].astype(int), edited["제외"]))
+            cur_flag = dict(zip(df_all["id"].astype(int), df_all["excluded"] == 1))
+            to_exclude = [i for i, v in new_flag.items() if v and not cur_flag.get(i, False)]
+            to_include = [i for i, v in new_flag.items() if not v and cur_flag.get(i, False)]
+            set_excluded(to_exclude, 1)
+            set_excluded(to_include, 0)
+            if to_exclude or to_include:
+                st.success(f"제외 {len(to_exclude)}건 · 복원 {len(to_include)}건 반영했습니다.")
+                st.rerun()
+            else:
+                st.info("변경된 항목이 없습니다.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
