@@ -22,7 +22,7 @@ from db import init_db, insert_response, load_responses
 from hypotheses import (
     REGIONS, INDUSTRIES, STAGES, PAINS, SALES_STRUCT, LEGAL_STRUCT,
     SIZE_BUCKETS, HYPOTHESIS_MATRIX, match_response, evaluate_hypotheses,
-    PAIN_TO_PRODUCT, label,
+    PAIN_TO_PRODUCT, label, OTHER_CODE, OTHER_LABEL,
 )
 
 ADMIN_PASSWORD = "admin1234"
@@ -56,6 +56,38 @@ def share_widget(share_url: str, message: str, key: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 선택 위젯 + '기타(직접 입력)' 헬퍼
+#   해당 사항이 없을 때 '기타'를 고르면 자유 입력창이 나타난다.
+#   저장 값: 직접 입력 텍스트가 있으면 그 텍스트, 없으면 OTHER_CODE.
+# ─────────────────────────────────────────────────────────────────────────────
+def select_with_other(widget, label_text, options_dict, key, **kwargs):
+    """단일 선택(selectbox/radio) + '기타' 선택 시 직접 입력. 최종 저장 값을 반환."""
+    choice = widget(label_text, list(options_dict.keys()),
+                    format_func=lambda k: options_dict[k], key=key, **kwargs)
+    if choice == OTHER_CODE:
+        custom = st.text_input(
+            "↳ '기타'를 선택하셨습니다. 직접 입력해 주세요",
+            key=f"{key}_etc", placeholder="여기에 직접 입력",
+        ).strip()
+        return custom or OTHER_CODE
+    return choice
+
+
+def multiselect_with_other(label_text, options_dict, key):
+    """복수 선택 + '기타' 선택 시 직접 입력. 최종 저장 값 리스트를 반환."""
+    picks = st.multiselect(label_text, list(options_dict.keys()),
+                           format_func=lambda k: options_dict[k], key=key)
+    if OTHER_CODE in picks:
+        custom = st.text_input(
+            "↳ '기타'를 선택하셨습니다. 직접 입력해 주세요",
+            key=f"{key}_etc", placeholder="여기에 직접 입력",
+        ).strip()
+        picks = [p for p in picks if p != OTHER_CODE]
+        picks.append(custom or OTHER_CODE)
+    return picks
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # [PUBLIC] 고객용 설문
 # ─────────────────────────────────────────────────────────────────────────────
 def public_survey():
@@ -76,49 +108,40 @@ def public_survey():
         _thank_you_screen()
         return
 
-    with st.form("survey"):
-        st.subheader("1. 회사 기본 정보")
-        c1, c2 = st.columns(2)
-        company = c1.text_input("회사명 *")
-        homepage = c2.text_input("홈페이지 주소 (URL)")
-        c3, c4 = st.columns(2)
-        contact = c3.text_input("담당자 성함 *")
-        phone = c4.text_input("연락처 *")
-        email = st.text_input("이메일 *")
-        size = st.selectbox("대략적인 규모", list(SIZE_BUCKETS.keys()),
-                            format_func=lambda k: SIZE_BUCKETS[k])
+    st.subheader("1. 회사 기본 정보")
+    c1, c2 = st.columns(2)
+    company = c1.text_input("회사명 *", key="company")
+    homepage = c2.text_input("홈페이지 주소 (URL)", key="homepage")
+    c3, c4 = st.columns(2)
+    contact = c3.text_input("담당자 성함 *", key="contact")
+    phone = c4.text_input("연락처 *", key="phone")
+    email = st.text_input("이메일 *", key="email")
+    size = select_with_other(st.selectbox, "대략적인 규모", SIZE_BUCKETS, key="size")
 
-        st.subheader("2. 우리 회사는 지금")
-        region = st.selectbox("소재지(권역)", list(REGIONS.keys()),
-                              format_func=lambda k: REGIONS[k])
-        industry = st.selectbox("주력 업종", list(INDUSTRIES.keys()),
-                                format_func=lambda k: INDUSTRIES[k])
-        stage = st.radio("수출 단계", list(STAGES.keys()),
-                         format_func=lambda k: STAGES[k])
+    st.subheader("2. 우리 회사는 지금")
+    region = select_with_other(st.selectbox, "소재지(권역)", REGIONS, key="region")
+    industry = select_with_other(st.selectbox, "주력 업종", INDUSTRIES, key="industry")
+    stage = select_with_other(st.radio, "수출 단계", STAGES, key="stage")
 
-        # [NEW] 인력/팀 구조 — 직관적 프레이밍
-        st.subheader("3. 해외 거래는 어떻게 운영되나요?")
-        st.caption(C.STRUCT_INTRO)
-        sales = st.radio("해외영업·무역 운영 방식", list(SALES_STRUCT.keys()),
-                         format_func=lambda k: SALES_STRUCT[k])
-        legal = st.radio("계약·법무 검토 방식", list(LEGAL_STRUCT.keys()),
-                         format_func=lambda k: LEGAL_STRUCT[k])
+    # [NEW] 인력/팀 구조 — 직관적 프레이밍
+    st.subheader("3. 해외 거래는 어떻게 운영되나요?")
+    st.caption(C.STRUCT_INTRO)
+    sales = select_with_other(st.radio, "해외영업·무역 운영 방식", SALES_STRUCT, key="sales")
+    legal = select_with_other(st.radio, "계약·법무 검토 방식", LEGAL_STRUCT, key="legal")
 
-        st.subheader("4. 가장 신경 쓰이는 지점")
-        top_pain = st.radio("최우선 애로사항 (하나만)", list(PAINS.keys()),
-                            format_func=lambda k: PAINS[k])
-        sec_pains = st.multiselect("그 외 걸리는 지점 (복수 선택)", list(PAINS.keys()),
-                                   format_func=lambda k: PAINS[k])
+    st.subheader("4. 가장 신경 쓰이는 지점")
+    top_pain = select_with_other(st.radio, "최우선 애로사항 (하나만)", PAINS, key="top_pain")
+    sec_pains = multiselect_with_other("그 외 걸리는 지점 (복수 선택)", PAINS, key="sec_pains")
 
-        st.subheader("5. 솔직하게, 어느 정도 공감하시나요?")
-        rv_risk = st.slider(C.RV_RISK, 0, 5, 3)
-        rv_gap = st.slider(C.RV_GAP, 0, 5, 3)
+    st.subheader("5. 솔직하게, 어느 정도 공감하시나요?")
+    rv_risk = st.slider(C.RV_RISK, 0, 5, 3, key="rv_risk")
+    rv_gap = st.slider(C.RV_GAP, 0, 5, 3, key="rv_gap")
 
-        st.subheader("6. 후속 안내")
-        allow_call = st.checkbox("진단 결과·지역 리스크 리포트를 전화로 안내받겠습니다")
-        allow_meeting = st.checkbox("필요 시 대면/화상 미팅으로 더 깊게 진단받고 싶습니다")
+    st.subheader("6. 후속 안내")
+    allow_call = st.checkbox("진단 결과·지역 리스크 리포트를 전화로 안내받겠습니다", key="allow_call")
+    allow_meeting = st.checkbox("필요 시 대면/화상 미팅으로 더 깊게 진단받고 싶습니다", key="allow_meeting")
 
-        submitted = st.form_submit_button("진단 결과 보기 →", use_container_width=True)
+    submitted = st.button("진단 결과 보기 →", use_container_width=True, type="primary")
 
     if submitted:
         if not (company and contact and phone and email):
