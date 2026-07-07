@@ -27,7 +27,7 @@ from hypotheses import (
 
 ADMIN_PASSWORD = "admin1234"
 # 배포 후 실제 도메인으로 교체 (공유 링크 생성에 사용)
-BASE_URL = "https://your-app.streamlit.app"
+BASE_URL = "https://tropsinterview202607.streamlit.app"
 
 st.set_page_config(page_title="수출 리스크 자가진단", page_icon="🧭", layout="centered")
 init_db()
