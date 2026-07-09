@@ -95,21 +95,63 @@ def multiselect_with_other(label_text, options_dict, key, **kwargs):
 # ─────────────────────────────────────────────────────────────────────────────
 FORM_CSS = """
 <style>
-/* 한글 가독성이 좋은 시스템 폰트 스택 */
+/* 한글 가독성이 좋은 시스템 폰트 스택 + 기본 글씨 확대 */
 html, body, [class*="css"] {
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
                  "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+    font-size: 17px;
 }
-.part-h   { font-size:1.2rem; font-weight:800; letter-spacing:-.3px;
-            margin:1.4rem 0 .3rem; }
-.q-title  { font-size:1.04rem; font-weight:700; line-height:1.55; margin:.05rem 0; }
-.q-num    { display:inline-block; background:#2563eb; color:#fff; font-size:.78rem;
-            font-weight:700; border-radius:6px; padding:2px 9px; margin-right:9px;
+.part-h   { font-size:1.45rem; font-weight:800; letter-spacing:-.3px;
+            margin:1.8rem 0 .5rem; }
+.q-title  { font-size:1.2rem; font-weight:700; line-height:1.6; margin:.1rem 0; }
+.q-num    { display:inline-block; background:#2563eb; color:#fff; font-size:.88rem;
+            font-weight:700; border-radius:7px; padding:3px 11px; margin-right:10px;
             vertical-align:middle; letter-spacing:.4px; }
-.q-hint   { color:#6b7280; font-size:.86rem; margin:.1rem 0 .45rem; }
+.q-hint   { color:#6b7280; font-size:.98rem; margin:.15rem 0 .6rem; }
 .req      { color:#dc2626; font-weight:800; }
-/* 질문 카드 간 여백 살짝 */
-div[data-testid="stVerticalBlockBorderWrapper"] { margin-bottom:.35rem; }
+
+/* 질문 카드: 넉넉한 내부 여백 + 카드 간 간격 (모바일 터치 여유) */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    margin-bottom:.9rem; padding:.35rem .25rem;
+}
+
+/* 선택형(라디오) 보기: 손가락 터치 고려해 크게·여유있게 */
+div[role="radiogroup"] > label {
+    font-size:1.08rem; line-height:1.5; padding:12px 12px;
+    margin-bottom:6px; border-radius:10px; align-items:flex-start;
+}
+div[role="radiogroup"] > label:hover { background:rgba(37,99,235,.06); }
+div[role="radiogroup"] [data-testid="stMarkdownContainer"] p { font-size:1.08rem; }
+
+/* 체크박스: 탭 영역 크게 */
+label[data-baseweb="checkbox"] { font-size:1.08rem; padding:10px 4px; }
+label[data-baseweb="checkbox"] div[data-testid="stMarkdownContainer"] p { font-size:1.08rem; }
+
+/* 드롭박스(select/multiselect): 높이·글씨 키워 탭하기 쉽게 */
+div[data-baseweb="select"] > div { min-height:52px; font-size:1.08rem; }
+div[data-baseweb="select"] { font-size:1.08rem; }
+
+/* 텍스트 입력칸: 높이·글씨 확대 */
+.stTextInput input { font-size:1.08rem; padding:12px 12px; min-height:50px; }
+
+/* 슬라이더: 숫자·핸들 여유 */
+.stSlider [data-testid="stTickBarMin"],
+.stSlider [data-testid="stTickBarMax"] { font-size:1rem; }
+
+/* 제출 버튼: 크고 누르기 쉽게 */
+div.stButton > button {
+    font-size:1.2rem; font-weight:700; padding:16px 20px; border-radius:12px;
+    min-height:56px;
+}
+
+/* 모바일: 좌우 여백 줄여 화면 폭 활용, 옵션은 더 크게 */
+@media (max-width: 640px) {
+    .block-container { padding-left:1rem; padding-right:1rem; padding-top:2rem; }
+    .q-title { font-size:1.14rem; }
+    div[role="radiogroup"] > label { font-size:1.12rem; padding:14px 12px; }
+    label[data-baseweb="checkbox"] { padding:14px 4px; }
+    div.stButton > button { min-height:60px; font-size:1.22rem; }
+}
 </style>
 """
 
