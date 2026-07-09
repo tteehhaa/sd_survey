@@ -90,6 +90,42 @@ def multiselect_with_other(label_text, options_dict, key, **kwargs):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 설문 시각 스타일 + 문항 번호 헬퍼 (대표님 가독성용)
+#   질문 하나 = 카드 하나 = 번호 하나. 문항이 섞이지 않도록 개별 넘버링한다.
+# ─────────────────────────────────────────────────────────────────────────────
+FORM_CSS = """
+<style>
+/* 한글 가독성이 좋은 시스템 폰트 스택 */
+html, body, [class*="css"] {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                 "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+}
+.part-h   { font-size:1.2rem; font-weight:800; letter-spacing:-.3px;
+            margin:1.4rem 0 .3rem; }
+.q-title  { font-size:1.04rem; font-weight:700; line-height:1.55; margin:.05rem 0; }
+.q-num    { display:inline-block; background:#2563eb; color:#fff; font-size:.78rem;
+            font-weight:700; border-radius:6px; padding:2px 9px; margin-right:9px;
+            vertical-align:middle; letter-spacing:.4px; }
+.q-hint   { color:#6b7280; font-size:.86rem; margin:.1rem 0 .45rem; }
+.req      { color:#dc2626; font-weight:800; }
+/* 질문 카드 간 여백 살짝 */
+div[data-testid="stVerticalBlockBorderWrapper"] { margin-bottom:.35rem; }
+</style>
+"""
+
+
+def q_label(num, question, hint=None, required=False):
+    """번호 배지 + 질문 문구(+선택 힌트)를 카드 상단에 렌더."""
+    star = " <span class='req'>*</span>" if required else ""
+    st.markdown(
+        f"<div class='q-title'><span class='q-num'>Q{num}</span>{question}{star}</div>",
+        unsafe_allow_html=True,
+    )
+    if hint:
+        st.markdown(f"<div class='q-hint'>{hint}</div>", unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # [PUBLIC] 고객용 설문
 # ─────────────────────────────────────────────────────────────────────────────
 def public_survey():
@@ -110,60 +146,105 @@ def public_survey():
         _thank_you_screen()
         return
 
-    st.subheader("1. 회사 기본 정보")
-    c1, c2 = st.columns(2)
-    company = c1.text_input("회사명 *", key="company")
-    homepage = c2.text_input("홈페이지 주소 (URL)", key="homepage")
-    c3, c4 = st.columns(2)
-    contact = c3.text_input("담당자 성함 *", key="contact")
-    phone = c4.text_input("연락처 *", key="phone")
-    email = st.text_input("이메일 *", key="email")
-    size = select_with_other(st.selectbox, "대략적인 규모", SIZE_BUCKETS, key="size")
+    st.markdown(FORM_CSS, unsafe_allow_html=True)
 
-    st.subheader("2. 우리 회사는 지금")
-    region = select_with_other(st.selectbox, "소재지(권역)", REGIONS, key="region")
-    industry = select_with_other(st.selectbox, "주력 업종", INDUSTRIES, key="industry")
-    stage = select_with_other(st.radio, "수출 단계", STAGES, key="stage")
-
-    # [NEW] 인력/팀 구조 — 직관적 프레이밍
-    st.subheader("3. 해외 거래는 어떻게 운영되나요?")
-    st.caption(C.STRUCT_INTRO)
-    sales = select_with_other(st.radio, "해외영업·무역 운영 방식", SALES_STRUCT, key="sales")
-    legal = select_with_other(st.radio, "계약·법무 검토 방식", LEGAL_STRUCT, key="legal")
-
-    st.subheader("4. 가장 신경 쓰이는 지점")
-    top_pain = select_with_other(st.radio, "최우선 애로사항 (하나만)", PAINS, key="top_pain")
-    sec_pains = multiselect_with_other("그 외 걸리는 지점 (복수 선택)", PAINS, key="sec_pains")
-
-    # [NEW] 해외 진출 과정에서 겪었/우려한 실무적 문제 (Pain Point 심화)
-    unexpected = multiselect_with_other(
-        "해외 진출 과정에서 다음과 같은 '예상치 못한 실무적 문제'를 "
-        "겪었거나 우려하신 적이 있습니까? (복수 선택 가능)",
-        UNEXPECTED_PROBLEMS, key="unexpected_problems",
+    # ── 회사 기본 정보 (연락처 폼) ──────────────────────────────────────────
+    st.markdown("<div class='part-h'>📋 회사 기본 정보</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='q-hint'>진단 결과를 안내드리기 위한 정보입니다. "
+        "<span class='req'>*</span> 는 필수 항목입니다.</div>",
+        unsafe_allow_html=True,
     )
+    with st.container(border=True):
+        c1, c2 = st.columns(2)
+        company = c1.text_input("회사명 *", key="company")
+        homepage = c2.text_input("홈페이지 주소 (URL)", key="homepage")
+        c3, c4 = st.columns(2)
+        contact = c3.text_input("담당자 성함 *", key="contact")
+        phone = c4.text_input("연락처 *", key="phone")
+        email = st.text_input("이메일 *", key="email")
+        size = select_with_other(st.selectbox, "대략적인 회사 규모", SIZE_BUCKETS, key="size")
 
-    # [NEW] 외부 위임·솔루션 니즈 (Solution 검증)
-    st.subheader("5. 외부 전문가·운영팀 활용 니즈")
-    delegate = multiselect_with_other(
-        "귀사에서 해외 진출(수출)을 진행할 때, 가장 외부 전문가(또는 운영팀)에게 "
-        "통째로 맡기고 싶은 단계는 무엇입니까? (최대 2개 선택)",
-        DELEGATE_STAGES, key="delegate_stages", max_selections=2,
-    )
-    pmo_role = select_with_other(
-        st.radio,
-        "만약 귀사만을 위한 '필요할 때만 쓰는 외부 글로벌 운영팀(Fractional PMO)'이 "
-        "있다면, 다음 중 어떤 역할을 가장 기대하십니까?",
-        PMO_ROLES, key="pmo_role",
-    )
+    # ── 우리 회사는 지금 ────────────────────────────────────────────────────
+    st.markdown("<div class='part-h'>🌏 우리 회사는 지금</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        q_label(1, "회사 소재지(권역)")
+        region = select_with_other(st.selectbox, "소재지(권역)", REGIONS,
+                                   key="region", label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(2, "주력 업종")
+        industry = select_with_other(st.selectbox, "주력 업종", INDUSTRIES,
+                                     key="industry", label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(3, "현재 수출 단계")
+        stage = select_with_other(st.radio, "수출 단계", STAGES,
+                                  key="stage", label_visibility="collapsed")
 
-    st.subheader("6. 솔직하게, 어느 정도 공감하시나요?")
-    rv_risk = st.slider(C.RV_RISK, 0, 5, 3, key="rv_risk")
-    rv_gap = st.slider(C.RV_GAP, 0, 5, 3, key="rv_gap")
+    # ── 해외 거래 운영 방식 (인력/팀 구조) ──────────────────────────────────
+    st.markdown("<div class='part-h'>🧩 해외 거래 운영 방식</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='q-hint'>{C.STRUCT_INTRO}</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        q_label(4, "해외영업·무역은 현재 어떻게 운영하고 계신가요?")
+        sales = select_with_other(st.radio, "해외영업·무역 운영 방식", SALES_STRUCT,
+                                  key="sales", label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(5, "계약·법무 검토는 어떻게 하고 계신가요?")
+        legal = select_with_other(st.radio, "계약·법무 검토 방식", LEGAL_STRUCT,
+                                  key="legal", label_visibility="collapsed")
 
-    st.subheader("7. 후속 안내")
-    allow_call = st.checkbox("진단 결과·지역 리스크 리포트를 전화로 안내받겠습니다", key="allow_call")
-    allow_meeting = st.checkbox("필요 시 대면/화상 미팅으로 더 깊게 진단받고 싶습니다", key="allow_meeting")
+    # ── 애로사항 진단 ───────────────────────────────────────────────────────
+    st.markdown("<div class='part-h'>⚠️ 애로사항 진단</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        q_label(6, "가장 신경 쓰이는 최우선 애로사항은 무엇입니까?", hint="하나만 선택해 주세요.")
+        top_pain = select_with_other(st.radio, "최우선 애로사항", PAINS,
+                                     key="top_pain", label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(7, "그 외에도 걸리는 지점이 있다면 골라주세요.", hint="복수 선택 가능")
+        sec_pains = multiselect_with_other("그 외 걸리는 지점", PAINS,
+                                           key="sec_pains", label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(8, "해외 진출 과정에서 다음과 같은 '예상치 못한 실무적 문제'를 "
+                   "겪었거나 우려하신 적이 있습니까?", hint="복수 선택 가능")
+        unexpected = multiselect_with_other("예상치 못한 실무적 문제", UNEXPECTED_PROBLEMS,
+                                            key="unexpected_problems",
+                                            label_visibility="collapsed")
 
+    # ── 외부 위임·솔루션 니즈 ───────────────────────────────────────────────
+    st.markdown("<div class='part-h'>🚀 외부 위임·솔루션 니즈</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        q_label(9, "해외 진출(수출) 시, 외부 전문가(운영팀)에게 통째로 맡기고 싶은 단계는?",
+                hint="최대 2개까지 선택 가능")
+        delegate = multiselect_with_other("통째로 맡기고 싶은 단계", DELEGATE_STAGES,
+                                          key="delegate_stages", max_selections=2,
+                                          label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(10, "'필요할 때만 쓰는 외부 글로벌 운영팀(Fractional PMO)'이 있다면, "
+                    "어떤 역할을 가장 기대하십니까?", hint="가장 기대하는 역할 하나를 선택해 주세요.")
+        pmo_role = select_with_other(st.radio, "Fractional PMO 기대 역할", PMO_ROLES,
+                                     key="pmo_role", label_visibility="collapsed")
+
+    # ── 솔직한 공감도 ───────────────────────────────────────────────────────
+    st.markdown("<div class='part-h'>💬 솔직한 공감도</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        q_label(11, C.RV_RISK, hint="0 = 전혀 아니다  ·  5 = 매우 그렇다")
+        rv_risk = st.slider("리스크 공감도", 0, 5, 3, key="rv_risk",
+                            label_visibility="collapsed")
+    with st.container(border=True):
+        q_label(12, C.RV_GAP, hint="0 = 전혀 아니다  ·  5 = 매우 그렇다")
+        rv_gap = st.slider("실행 공백 공감도", 0, 5, 3, key="rv_gap",
+                           label_visibility="collapsed")
+
+    # ── 후속 안내 ───────────────────────────────────────────────────────────
+    st.markdown("<div class='part-h'>🤝 후속 안내</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        q_label(13, "진단 이후, 어떤 후속 안내를 원하시나요?",
+                hint="원하시는 항목을 체크해 주세요. (선택)")
+        allow_call = st.checkbox("진단 결과·지역 리스크 리포트를 전화로 안내받겠습니다",
+                                 key="allow_call")
+        allow_meeting = st.checkbox("필요 시 대면/화상 미팅으로 더 깊게 진단받고 싶습니다",
+                                    key="allow_meeting")
+
+    st.markdown("")
     submitted = st.button("진단 결과 보기 →", use_container_width=True, type="primary")
 
     if submitted:
