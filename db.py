@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS responses (
     -- [NEW] 인력/팀 구조
     sales_struct    TEXT,
     legal_struct    TEXT,
+    -- [NEW] 외부 위임·솔루션 니즈
+    delegate_stages     TEXT,     -- 통째로 맡기고 싶은 단계(최대 2개, 콤마 구분)
+    unexpected_problems TEXT,     -- 겪었거나 우려한 실무적 문제(복수, 콤마 구분)
+    pmo_role            TEXT,     -- Fractional PMO에 가장 기대하는 역할(단일)
     -- 리얼보이스 공감도 (0~5)
     resonance_risk  INTEGER,  -- "리스크가 남 일 같지 않다"
     resonance_gap   INTEGER,  -- "실행 공백을 느낀다"
@@ -52,6 +56,9 @@ CREATE TABLE IF NOT EXISTS responses (
 # 기존 DB에 뒤늦게 추가된 컬럼 — init_db()에서 없으면 ALTER로 채운다.
 MIGRATIONS = {
     "excluded": "ALTER TABLE responses ADD COLUMN excluded INTEGER DEFAULT 0",
+    "delegate_stages": "ALTER TABLE responses ADD COLUMN delegate_stages TEXT",
+    "unexpected_problems": "ALTER TABLE responses ADD COLUMN unexpected_problems TEXT",
+    "pmo_role": "ALTER TABLE responses ADD COLUMN pmo_role TEXT",
 }
 
 
@@ -92,6 +99,7 @@ def insert_response(data: dict) -> int:
         "created_at", "company_name", "homepage_url", "contact_name", "contact_phone",
         "contact_email", "size_bucket", "region", "industry", "export_stage",
         "top_pain", "secondary_pains", "sales_struct", "legal_struct",
+        "delegate_stages", "unexpected_problems", "pmo_role",
         "resonance_risk", "resonance_gap", "allow_call", "allow_meeting",
         "matched_tid", "match_score", "matched_product", "referred_by", "share_code",
     ]

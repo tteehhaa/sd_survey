@@ -23,6 +23,7 @@ from hypotheses import (
     REGIONS, INDUSTRIES, STAGES, PAINS, SALES_STRUCT, LEGAL_STRUCT,
     SIZE_BUCKETS, HYPOTHESIS_MATRIX, match_response, evaluate_hypotheses,
     PAIN_TO_PRODUCT, label, OTHER_CODE, OTHER_LABEL,
+    DELEGATE_STAGES, UNEXPECTED_PROBLEMS, PMO_ROLES,
 )
 
 ADMIN_PASSWORD = "admin1234"
@@ -73,10 +74,11 @@ def select_with_other(widget, label_text, options_dict, key, **kwargs):
     return choice
 
 
-def multiselect_with_other(label_text, options_dict, key):
-    """복수 선택 + '기타' 선택 시 직접 입력. 최종 저장 값 리스트를 반환."""
+def multiselect_with_other(label_text, options_dict, key, **kwargs):
+    """복수 선택 + '기타' 선택 시 직접 입력. 최종 저장 값 리스트를 반환.
+    max_selections 등 st.multiselect의 추가 인자는 kwargs로 전달된다."""
     picks = st.multiselect(label_text, list(options_dict.keys()),
-                           format_func=lambda k: options_dict[k], key=key)
+                           format_func=lambda k: options_dict[k], key=key, **kwargs)
     if OTHER_CODE in picks:
         custom = st.text_input(
             "↳ '기타'를 선택하셨습니다. 직접 입력해 주세요",
@@ -133,11 +135,32 @@ def public_survey():
     top_pain = select_with_other(st.radio, "최우선 애로사항 (하나만)", PAINS, key="top_pain")
     sec_pains = multiselect_with_other("그 외 걸리는 지점 (복수 선택)", PAINS, key="sec_pains")
 
-    st.subheader("5. 솔직하게, 어느 정도 공감하시나요?")
+    # [NEW] 해외 진출 과정에서 겪었/우려한 실무적 문제 (Pain Point 심화)
+    unexpected = multiselect_with_other(
+        "해외 진출 과정에서 다음과 같은 '예상치 못한 실무적 문제'를 "
+        "겪었거나 우려하신 적이 있습니까? (복수 선택 가능)",
+        UNEXPECTED_PROBLEMS, key="unexpected_problems",
+    )
+
+    # [NEW] 외부 위임·솔루션 니즈 (Solution 검증)
+    st.subheader("5. 외부 전문가·운영팀 활용 니즈")
+    delegate = multiselect_with_other(
+        "귀사에서 해외 진출(수출)을 진행할 때, 가장 외부 전문가(또는 운영팀)에게 "
+        "통째로 맡기고 싶은 단계는 무엇입니까? (최대 2개 선택)",
+        DELEGATE_STAGES, key="delegate_stages", max_selections=2,
+    )
+    pmo_role = select_with_other(
+        st.radio,
+        "만약 귀사만을 위한 '필요할 때만 쓰는 외부 글로벌 운영팀(Fractional PMO)'이 "
+        "있다면, 다음 중 어떤 역할을 가장 기대하십니까?",
+        PMO_ROLES, key="pmo_role",
+    )
+
+    st.subheader("6. 솔직하게, 어느 정도 공감하시나요?")
     rv_risk = st.slider(C.RV_RISK, 0, 5, 3, key="rv_risk")
     rv_gap = st.slider(C.RV_GAP, 0, 5, 3, key="rv_gap")
 
-    st.subheader("6. 후속 안내")
+    st.subheader("7. 후속 안내")
     allow_call = st.checkbox("진단 결과·지역 리스크 리포트를 전화로 안내받겠습니다", key="allow_call")
     allow_meeting = st.checkbox("필요 시 대면/화상 미팅으로 더 깊게 진단받고 싶습니다", key="allow_meeting")
 
@@ -161,6 +184,9 @@ def public_survey():
             "export_stage": stage, "top_pain": top_pain,
             "secondary_pains": ",".join(sec_pains),
             "sales_struct": sales, "legal_struct": legal,
+            "delegate_stages": ",".join(delegate),
+            "unexpected_problems": ",".join(unexpected),
+            "pmo_role": pmo_role,
             "resonance_risk": rv_risk, "resonance_gap": rv_gap,
             "allow_call": int(allow_call), "allow_meeting": int(allow_meeting),
             "matched_tid": m["tid"], "match_score": m["score"],
@@ -193,6 +219,12 @@ def _thank_you_screen():
     code = st.session_state.get("share_code", "done")
     share_url = f"{BASE_URL}/?ref={urllib.parse.quote(code)}"
     share_widget(share_url, C.viral_message_for_respondent(share_url), key="done")
+
+    # ── THÉONÉ 홍보 마무리 섹션 ──────────────────────────────────────────────
+    st.divider()
+    st.success(C.THEONE_THANKS)
+    with st.container(border=True):
+        st.markdown(C.THEONE_PROMO)
 
     if st.button("새 진단 시작"):
         for k in ("submitted", "match", "share_code"):
