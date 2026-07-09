@@ -11,6 +11,7 @@ app.py — Global Desk / Tops 가설 검증 시스템 (Streamlit 단일 앱)
 
 from __future__ import annotations
 import datetime as dt
+import json
 import urllib.parse
 
 import pandas as pd
@@ -38,22 +39,22 @@ init_db()
 # 공유 UI 헬퍼 (링크복사 + 카톡 붙여넣기용 메시지)
 # ─────────────────────────────────────────────────────────────────────────────
 def share_widget(share_url: str, message: str, key: str):
-    """링크 복사 버튼 + 공유 메시지 텍스트(카톡/문자 붙여넣기용)."""
-    st.text_input("공유 링크", value=share_url, key=f"{key}_url")
+    """메시지(링크 포함) 전체를 한 번에 복사하는 버튼 + 미리보기."""
+    st.caption("아래 메시지를 그대로 복사해 단톡방·지인 대표님께 전달해 주세요.")
+    st.code(message, language=None)
+    js_msg = json.dumps(message)  # 개행·따옴표를 안전하게 JS 문자열로 인코딩
     components.html(
         f"""
-        <button onclick="navigator.clipboard.writeText('{share_url}');
-                this.innerText='✅ 링크 복사됨!';"
-            style="width:100%;padding:12px;border:0;border-radius:10px;
+        <button onclick="navigator.clipboard.writeText({js_msg});
+                this.innerText='✅ 메시지가 복사되었습니다 (붙여넣기 하세요)';"
+            style="width:100%;padding:13px;border:0;border-radius:10px;
                    background:#FEE500;color:#191600;font-weight:700;
                    font-size:15px;cursor:pointer;">
-            🔗 링크 복사하기 (카톡·문자에 붙여넣기)
+            📋 메시지 전체 복사 (링크 포함)
         </button>
         """,
-        height=56,
+        height=58,
     )
-    st.caption("아래 메시지를 그대로 복사해 단톡방·지인 대표님께 보내보세요 👇")
-    st.code(message, language=None)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -335,7 +336,17 @@ def _thank_you_screen():
             f"현재 가장 도움이 될 방향은 {product_line} 입니다."
         )
 
-    # (b) 완료 화면 강력 CTA + 공유 스크립트
+    # ── (1) THÉONÉ 홍보 + 문의 섹션 (먼저 노출) ─────────────────────────────
+    st.divider()
+    st.markdown(C.THEONE_THANKS)
+    with st.container(border=True):
+        st.markdown(C.THEONE_PROMO)
+        b1, b2 = st.columns(2)
+        b1.link_button("✉️ 이메일로 문의하기", f"mailto:{C.THEONE_EMAIL}",
+                       use_container_width=True, type="primary")
+        b2.link_button("🌐 공식 웹사이트", C.THEONE_URL, use_container_width=True)
+
+    # ── (2) 공유 CTA ────────────────────────────────────────────────────────
     st.divider()
     st.subheader(f"📣 {C.DONE_CTA}")
     st.write(C.DONE_SUB)
@@ -343,12 +354,7 @@ def _thank_you_screen():
     share_url = f"{BASE_URL}/?ref={urllib.parse.quote(code)}"
     share_widget(share_url, C.viral_message_for_respondent(share_url), key="done")
 
-    # ── THÉONÉ 홍보 마무리 섹션 ──────────────────────────────────────────────
     st.divider()
-    st.success(C.THEONE_THANKS)
-    with st.container(border=True):
-        st.markdown(C.THEONE_PROMO)
-
     if st.button("새 진단 시작"):
         for k in ("submitted", "match", "share_code"):
             st.session_state.pop(k, None)
