@@ -39,21 +39,57 @@ init_db()
 # 공유 UI 헬퍼 (링크복사 + 카톡 붙여넣기용 메시지)
 # ─────────────────────────────────────────────────────────────────────────────
 def share_widget(share_url: str, message: str, key: str):
-    """메시지(링크 포함) 전체를 한 번에 복사하는 버튼 + 미리보기."""
+    """메시지(링크 포함) 전체를 한 번에 복사하는 버튼 + 미리보기.
+
+    components.html은 iframe으로 렌더되어 navigator.clipboard가 권한 정책에
+    막힐 수 있으므로, iframe 안에서도 동작하는 execCommand(숨은 textarea)를
+    1차로 쓰고 실패 시 clipboard API로 폴백한다.
+    """
     st.caption("아래 메시지를 그대로 복사해 단톡방·지인 대표님께 전달해 주세요.")
-    st.code(message, language=None)
-    js_msg = json.dumps(message)  # 개행·따옴표를 안전하게 JS 문자열로 인코딩
+    st.code(message, language=None)  # 코드블록 우상단 복사 아이콘도 백업 수단
+    js_msg = json.dumps(message)     # 개행·따옴표를 안전한 JS 문자열로 인코딩
+    uid = f"copy_{key}"
     components.html(
         f"""
-        <button onclick="navigator.clipboard.writeText({js_msg});
-                this.innerText='✅ 메시지가 복사되었습니다 (붙여넣기 하세요)';"
+        <textarea id="{uid}_ta"
+            style="position:absolute;left:-9999px;top:0;opacity:0;"></textarea>
+        <button id="{uid}_btn"
             style="width:100%;padding:13px;border:0;border-radius:10px;
                    background:#FEE500;color:#191600;font-weight:700;
                    font-size:15px;cursor:pointer;">
             📋 메시지 전체 복사 (링크 포함)
         </button>
+        <script>
+          (function() {{
+            var msg = {js_msg};
+            var ta = document.getElementById("{uid}_ta");
+            var btn = document.getElementById("{uid}_btn");
+            ta.value = msg;
+            function done(ok) {{
+              btn.innerText = ok
+                ? "✅ 메시지가 복사되었습니다 (붙여넣기 하세요)"
+                : "⚠️ 복사가 차단되었습니다 — 위 메시지를 직접 복사해 주세요";
+            }}
+            btn.addEventListener("click", function() {{
+              var ok = false;
+              try {{
+                ta.readOnly = false;
+                ta.focus();
+                ta.select();
+                ta.setSelectionRange(0, msg.length);
+                ok = document.execCommand("copy");
+              }} catch (e) {{ ok = false; }}
+              if (ok) {{ done(true); return; }}
+              if (navigator.clipboard && navigator.clipboard.writeText) {{
+                navigator.clipboard.writeText(msg)
+                  .then(function() {{ done(true); }})
+                  .catch(function() {{ done(false); }});
+              }} else {{ done(false); }}
+            }});
+          }})();
+        </script>
         """,
-        height=58,
+        height=64,
     )
 
 
